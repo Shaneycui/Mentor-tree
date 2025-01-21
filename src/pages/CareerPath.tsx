@@ -23,6 +23,14 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import Modal from 'react-modal';
+import CategoryCard from '../components/career/CategoryCard';
+import CompanyInfoCard from '../components/career/CompanyInfoCard';
+import CareerGraph from '../components/career/CareerGraph';
+import NodeDrawer from '../components/career/NodeDrawer';
+import GraphToolbar from '../components/career/GraphToolbar';
+import Loading from '../components/shared/Loading';
+import { searchCompanyInfo } from '../services/perplexityService';
+import type { NodeData } from '../types/career';
 
 interface OrgStructure {
   title: string;
@@ -483,186 +491,104 @@ function CompanyDetail({ company, onBack }: CompanyDetailProps) {
 
 // 3. 最后导出主组件
 export default function CareerPath() {
-  const [selectedType, setSelectedType] = useState<'entity' | 'finance' | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showGraph, setShowGraph] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // 添加测试数据
-  const medicalEntities: Record<string, OrgStructure> = {
-    medtronic: {
-      title: "美敦力 (Medtronic)",
-      description: "全球领先的医疗科技公司",
-      governance: [
-        {
-          name: "研发部门",
-          description: "负责产品研发和创新",
-          subunits: [
-            {
-              name: "产品开发",
-              roles: [
-                {
-                  title: "研发总监",
-                  level: "Director",
-                  responsibilities: ["产品创新", "技术研发"],
-                  requirements: ["医疗器械背景", "研发经验"]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  };
-
-  const medicalFinance: Record<string, OrgStructure> = {
-    qiming: {
-      title: "启明创投",
-      description: "专注医疗健康领域的顶级创投机构",
-      governance: [
-        {
-          name: "投资部门",
-          description: "负责项目投资和管理",
-          subunits: [
-            {
-              name: "投资团队",
-              roles: [
-                {
-                  title: "投资总监",
-                  level: "Director",
-                  responsibilities: ["项目投资", "投后管理"],
-                  requirements: ["医疗行业背景", "投资经验"]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  };
-
-  // 获取当前选中的公司数据
-  const currentCompany = selectedType && selectedCompany ? 
-    (selectedType === 'entity' ? medicalEntities[selectedCompany] : medicalFinance[selectedCompany]) 
-    : null;
-
-  // 生成节点数据
-  const nodes = useMemo(() => {
-    if (!currentCompany) return [];
-    
-    const result: Node[] = [];
-    const centerX = 500;
-    const centerY = 300;
-
-    // 添加公司根节点
-    result.push({
-      id: 'root',
-      position: { x: centerX, y: centerY },
-      data: { 
-        label: currentCompany.title,
-        type: 'root',
-        description: currentCompany.description
-      },
-      className: 'bg-purple-600 text-white rounded-lg p-4 shadow-lg'
-    });
-
-    // 添加部门节点
-    currentCompany.governance.forEach((dept, i) => {
-      const angle = (2 * Math.PI * i) / currentCompany.governance.length;
-      const radius = 250;
+  const handleCompanySelect = useCallback(async (companyId: string) => {
+    setSelectedCompany(companyId);
+    setLoading(true);
+    try {
+      const company = categories
+        .flatMap(cat => cat.companies)
+        .find(c => c.id === companyId);
       
-      result.push({
-        id: `dept-${i}`,
-        position: {
-          x: centerX + radius * Math.cos(angle),
-          y: centerY + radius * Math.sin(angle)
-        },
-        data: {
-          label: dept.name,
-          type: 'governance',
-          description: dept.description
-        },
-        className: 'bg-blue-500 text-white rounded-lg p-4 shadow-md'
-      });
-    });
+      if (company) {
+        const results = await searchCompanyInfo(company.name);
+        setSearchResults(results);
+      }
+    } catch (error) {
+      console.error('Error fetching company info:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    return result;
-  }, [currentCompany]);
+  const handleViewStructure = useCallback(() => {
+    setShowGraph(true);
+  }, []);
 
-  // 生成边数据
-  const edges = useMemo(() => {
-    if (!nodes.length) return [];
+  const handleNodeClick = useCallback((node: Node<NodeData>) => {
+    setSelectedNode(node);
+    setDrawerOpen(true);
+  }, []);
 
-    return nodes
-      .filter(node => node.id !== 'root')
-      .map(node => ({
-        id: `edge-root-${node.id}`,
-        source: 'root',
-        target: node.id,
-        type: 'smoothstep',
-        animated: true,
-        style: { stroke: '#94a3b8', strokeWidth: 2 },
-        markerEnd: { type: MarkerType.ArrowClosed }
-      }));
-  }, [nodes]);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loading size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {!selectedType && (
-        <div className="container mx-auto px-4 py-12">
-          <h1 className="text-3xl font-bold text-center mb-12">选择发展方向</h1>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <CategoryCard
-              title="医疗实体"
-              icon={<Building className="w-8 h-8" />}
-              description="医疗器械和医疗技术公司"
-              companies={[
-                { id: "medtronic", name: "美敦力 (Medtronic)" },
-                { id: "jnj", name: "强生 (Johnson & Johnson)" }
-              ]}
-              onClick={() => setSelectedType('entity')}
-              onCompanySelect={setSelectedCompany}
+      <div className="container mx-auto px-4 py-12">
+        {!selectedCategory ? (
+          <>
+            <h1 className="text-3xl font-bold text-center mb-12">选择领域</h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              {categories.map(category => (
+                <CategoryCard
+                  key={category.id}
+                  {...category}
+                  onClick={() => setSelectedCategory(category.id)}
+                  onCompanySelect={handleCompanySelect}
+                />
+              ))}
+            </div>
+          </>
+        ) : !showGraph ? (
+          <div className="max-w-3xl mx-auto space-y-6">
+            {searchResults.map((result, index) => (
+              <CompanyInfoCard
+                key={index}
+                result={result}
+                onViewStructure={handleViewStructure}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <GraphToolbar
+              onZoomIn={() => {/* 实现缩放功能 */}}
+              onZoomOut={() => {/* 实现缩放功能 */}}
+              onFitView={() => {/* 实现适应屏幕功能 */}}
+              onReset={() => {/* 实现重置功能 */}}
+              searchTerm=""
+              onSearch={() => {/* 实现搜索功能 */}}
+              selectedType=""
+              onTypeChange={() => {/* 实现类型切换功能 */}}
+              nodeTypes={[]}
             />
-            <CategoryCard
-              title="医疗金融"
-              icon={<LineChart className="w-8 h-8" />}
-              description="医疗投资和金融机构"
-              companies={[
-                { id: "qiming", name: "启明创投" },
-                { id: "cb", name: "康桥资本" }
-              ]}
-              onClick={() => setSelectedType('finance')}
-              onCompanySelect={setSelectedCompany}
+            <CareerGraph
+              initialNodes={[]}
+              initialEdges={[]}
+              onNodeClick={handleNodeClick}
             />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {selectedType && selectedCompany && currentCompany && (
-        <div className="h-screen relative">
-          <button
-            onClick={() => {
-              setSelectedType(null);
-              setSelectedCompany(null);
-            }}
-            className="absolute top-4 left-4 z-10 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-md hover:bg-gray-50 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            返回
-          </button>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            fitView
-            minZoom={0.5}
-            maxZoom={1.5}
-            nodesDraggable={false}
-            nodesConnectable={false}
-          >
-            <Background />
-            <Controls />
-            <MiniMap />
-          </ReactFlow>
-        </div>
-      )}
+      <NodeDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        node={selectedNode?.data ?? null}
+      />
     </div>
   );
 }
@@ -838,4 +764,44 @@ function TypeSelection({ onSelectType, onSelectCompany }: TypeSelectionProps) {
 interface TypeSelectionProps {
   onSelectType: (type: 'entity' | 'finance') => void;
   onSelectCompany: (id: string) => void;
+}
+
+// 定义类别数据
+const categories = [
+  {
+    id: 'entity',
+    title: '医疗实体',
+    icon: <Building className="w-8 h-8" />,
+    description: '探索医疗器械、制药等实体企业的组织架构和职业发展路径',
+    companies: [
+      { id: 'medtronic', name: '美敦力' },
+      { id: 'jnj', name: '强生' },
+      { id: 'roche', name: '罗氏' },
+      { id: 'philips', name: '飞利浦医疗' }
+    ]
+  },
+  {
+    id: 'finance',
+    title: '医疗金融',
+    icon: <LineChart className="w-8 h-8" />,
+    description: '了解医疗基金、投资机构等金融领域的岗位体系',
+    companies: [
+      { id: 'sequoia', name: '红杉资本' },
+      { id: 'hillhouse', name: '高瓴资本' },
+      { id: 'qiming', name: '启明创投' },
+      { id: 'lilly_asia', name: '礼来亚洲基金' }
+    ]
+  }
+];
+
+// 定义类型
+interface Category {
+  id: string;
+  title: string;
+  icon: React.ReactNode;
+  description: string;
+  companies: Array<{
+    id: string;
+    name: string;
+  }>;
 }

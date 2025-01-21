@@ -1,336 +1,201 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { 
-  TreePine, 
   User, 
-  MessageSquare, 
-  Bookmark, 
-  ThumbsUp, 
-  History, 
-  Bell, 
-  DollarSign, 
-  FileText, 
-  MessageCircle, 
-  Settings 
+  Mail, 
+  Briefcase, 
+  GraduationCap,
+  Award,
+  MessageCircle,
+  BookOpen,
+  Settings
 } from 'lucide-react';
-import { mockProfile } from '../mock/data';
+import { useAuth } from '../contexts/AuthContext';
 
-interface Profile {
-  id: string;
-  full_name: string;
-  nickname?: string;
-  avatar_url?: string;
-  title?: string;
-  bio?: string;
-  skills?: string[];
-  posts_count?: number;
-  likes_count?: number;
-  followers_count?: number;
-  following_count?: number;
-  created_at?: string;
-  updated_at?: string;
+interface UserProfile {
+  fullName: string;
+  email: string;
+  title: string;
+  company: string;
+  education: string;
+  skills: string[];
+  certifications: string[];
+  bio: string;
 }
 
-interface MenuItem {
-  icon: React.ReactNode;
-  label: string;
-  path: string;
-}
-
-const menuItems: MenuItem[] = [
-  { icon: <User size={20} />, label: '个人资料', path: 'profile' },
-  { icon: <MessageSquare size={20} />, label: '我的问题', path: 'questions' },
-  { icon: <Bookmark size={20} />, label: '我的收藏', path: 'bookmarks' },
-  { icon: <ThumbsUp size={20} />, label: '我的点赞', path: 'likes' },
-  { icon: <History size={20} />, label: '浏览历史', path: 'history' },
-  { icon: <Bell size={20} />, label: '消息通知', path: 'notifications' },
-  { icon: <DollarSign size={20} />, label: '付费咨询', path: 'consulting' },
-  { icon: <FileText size={20} />, label: '草稿箱', path: 'drafts' },
-  { icon: <MessageCircle size={20} />, label: '意见反馈', path: 'feedback' },
-  { icon: <Settings size={20} />, label: '个人设置', path: 'settings' },
-];
+const mockProfile: UserProfile = {
+  fullName: '张医生',
+  email: 'zhang@example.com',
+  title: '资深医疗器械研发专家',
+  company: '美敦力',
+  education: '清华大学 生物医学工程 博士',
+  skills: ['医疗器械研发', '项目管理', '产品设计', '临床试验'],
+  certifications: ['PMP认证', 'FDA法规专家认证'],
+  bio: '15年医疗器械行业经验，专注于心血管介入器械研发...'
+};
 
 export default function Profile() {
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState('profile');
-  const [formData, setFormData] = useState({
-    full_name: '',
-    nickname: '',
-    title: '',
-    bio: '',
-    skills: ''
-  });
-
-  useEffect(() => {
-    async function loadProfile() {
-      try {
-        if (!user?.id) return;
-        
-        // 模拟API调用延迟
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setProfile(mockProfile);
-        setFormData({
-          full_name: mockProfile.full_name || '',
-          nickname: mockProfile.nickname || '',
-          title: mockProfile.title || '',
-          bio: mockProfile.bio || '',
-          skills: (mockProfile.skills || []).join(', ')
-        });
-      } catch (error) {
-        console.error('Error loading profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadProfile();
-  }, [user?.id]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const updates = {
-        id: user?.id,
-        full_name: formData.full_name,
-        nickname: formData.nickname,
-        title: formData.title,
-        bio: formData.bio,
-        skills: formData.skills.split(',').map(s => s.trim()).filter(Boolean),
-        updated_at: new Date().toISOString()
-      } as Profile;
-
-      const { error } = await supabase
-        .from('profiles')
-        .upsert(updates);
-
-      if (error) throw error;
-      setProfile(prev => prev ? { ...prev, ...updates } : updates);
-      setEditing(false);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-    }
-  }
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  const { signOut } = useAuth();
+  const [activeTab, setActiveTab] = useState<'info' | 'activity' | 'settings'>('info');
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* 左侧个人信息卡片 */}
-        <div className="md:col-span-1">
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex flex-col items-center">
-              <div className="relative">
-                <img
-                  src={profile?.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${profile?.full_name}`}
-                  alt="Profile"
-                  className="w-24 h-24 rounded-full object-cover border-4 border-emerald-100"
-                />
-                <button className="absolute bottom-0 right-0 bg-emerald-500 text-white p-1 rounded-full hover:bg-emerald-600">
-                  <User size={16} />
-                </button>
-              </div>
-              
-              <h2 className="mt-4 text-xl font-semibold text-gray-900">
-                {profile?.nickname || profile?.full_name}
-              </h2>
-              <p className="text-sm text-gray-500">{profile?.title || '未设置头衔'}</p>
-
-              <div className="mt-6 grid grid-cols-2 gap-4 w-full text-center">
-                <div className="border-r border-gray-200">
-                  <div className="text-2xl font-semibold text-gray-900">
-                    {profile?.posts_count || 0}
-                  </div>
-                  <div className="text-sm text-gray-500">发布</div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          {/* 个人信息卡片 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-xl shadow-md p-8 mb-8"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-6">
+                <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center">
+                  <User className="w-12 h-12 text-purple-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-semibold text-gray-900">
-                    {profile?.likes_count || 0}
-                  </div>
-                  <div className="text-sm text-gray-500">获赞</div>
+                  <h1 className="text-2xl font-bold mb-2">{mockProfile.fullName}</h1>
+                  <p className="text-gray-600 mb-1">{mockProfile.title}</p>
+                  <p className="text-gray-600">{mockProfile.company}</p>
                 </div>
               </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-4 w-full text-center">
-                <div className="border-r border-gray-200">
-                  <div className="text-2xl font-semibold text-gray-900">
-                    {profile?.followers_count || 0}
-                  </div>
-                  <div className="text-sm text-gray-500">粉丝</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold text-gray-900">
-                    {profile?.following_count || 0}
-                  </div>
-                  <div className="text-sm text-gray-500">关注</div>
-                </div>
-              </div>
+              <button
+                onClick={() => signOut()}
+                className="px-4 py-2 text-gray-600 hover:text-purple-600 transition-colors"
+              >
+                退出登录
+              </button>
             </div>
+          </motion.div>
+
+          {/* 标签页导航 */}
+          <div className="flex gap-8 mb-8 border-b">
+            <button
+              onClick={() => setActiveTab('info')}
+              className={`pb-4 px-2 ${
+                activeTab === 'info'
+                  ? 'text-purple-600 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-purple-600'
+              }`}
+            >
+              基本信息
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`pb-4 px-2 ${
+                activeTab === 'activity'
+                  ? 'text-purple-600 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-purple-600'
+              }`}
+            >
+              活动记录
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`pb-4 px-2 ${
+                activeTab === 'settings'
+                  ? 'text-purple-600 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-purple-600'
+              }`}
+            >
+              设置
+            </button>
           </div>
 
-          {/* 导航菜单 */}
-          <nav className="mt-6 bg-white shadow rounded-lg overflow-hidden">
-            {menuItems.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => setActiveTab(item.path)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium ${
-                  activeTab === item.path
-                    ? 'text-emerald-600 bg-emerald-50'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
+          {/* 内容区域 */}
+          <div className="space-y-6">
+            {activeTab === 'info' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-6"
               >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-purple-600" />
+                    联系方式
+                  </h2>
+                  <p className="text-gray-600">{mockProfile.email}</p>
+                </div>
 
-        {/* 右侧内容区域 */}
-        <div className="md:col-span-3">
-          <div className="bg-white shadow rounded-lg">
-            {activeTab === 'profile' ? (
-              <div className="p-6">
-                {/* 原有的编辑表单或显示内容 */}
-                {editing ? (
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                      <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        id="full_name"
-                        value={formData.full_name}
-                        onChange={e => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
-                      />
-                    </div>
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <GraduationCap className="w-5 h-5 text-purple-600" />
+                    教育背景
+                  </h2>
+                  <p className="text-gray-600">{mockProfile.education}</p>
+                </div>
 
-                    <div>
-                      <label htmlFor="nickname" className="block text-sm font-medium text-gray-700">
-                        Nickname
-                      </label>
-                      <input
-                        type="text"
-                        id="nickname"
-                        value={formData.nickname}
-                        onChange={e => setFormData(prev => ({ ...prev, nickname: e.target.value }))}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
-                        placeholder="e.g. John Doe"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-                        Title
-                      </label>
-                      <input
-                        type="text"
-                        id="title"
-                        value={formData.title}
-                        onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
-                        placeholder="e.g. Senior Software Engineer"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-                        Bio
-                      </label>
-                      <textarea
-                        id="bio"
-                        rows={4}
-                        value={formData.bio}
-                        onChange={e => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
-                        placeholder="Tell us about yourself"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="skills" className="block text-sm font-medium text-gray-700">
-                        Skills (comma-separated)
-                      </label>
-                      <input
-                        type="text"
-                        id="skills"
-                        value={formData.skills}
-                        onChange={e => setFormData(prev => ({ ...prev, skills: e.target.value }))}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
-                        placeholder="e.g. React, TypeScript, Node.js"
-                      />
-                    </div>
-
-                    <div className="flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={() => setEditing(false)}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-purple-600" />
+                    专业技能
+                  </h2>
+                  <div className="flex flex-wrap gap-2">
+                    {mockProfile.skills.map(skill => (
+                      <span
+                        key={skill}
+                        className="px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-sm"
                       >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">{profile?.full_name}</h3>
-                      <p className="text-sm text-gray-500">{profile?.title || 'No title set'}</p>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Bio</h4>
-                      <p className="mt-1 text-sm text-gray-600">
-                        {profile?.bio || 'No bio added yet'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Skills</h4>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {profile?.skills?.map((skill, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800"
-                          >
-                            {skill}
-                          </span>
-                        )) || 'No skills added yet'}
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => setEditing(true)}
-                        className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700"
-                      >
-                        Edit Profile
-                      </button>
-                    </div>
+                        {skill}
+                      </span>
+                    ))}
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-6">
-                <p className="text-gray-500 text-center">
-                  {menuItems.find(item => item.path === activeTab)?.label} 功能开发中...
-                </p>
-              </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <Award className="w-5 h-5 text-purple-600" />
+                    专业认证
+                  </h2>
+                  <div className="space-y-2">
+                    {mockProfile.certifications.map(cert => (
+                      <div key={cert} className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-purple-600" />
+                        <span className="text-gray-600">{cert}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'activity' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-6"
+              >
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5 text-purple-600" />
+                    最近问答
+                  </h2>
+                  {/* 添加问答记录 */}
+                </div>
+
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-purple-600" />
+                    学习记录
+                  </h2>
+                  {/* 添加学习记录 */}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'settings' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-white rounded-xl p-6 shadow-sm"
+              >
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-purple-600" />
+                  账号设置
+                </h2>
+                {/* 添加设置选项 */}
+              </motion.div>
             )}
           </div>
         </div>

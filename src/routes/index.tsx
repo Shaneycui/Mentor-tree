@@ -1,5 +1,5 @@
 import React from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Home from '../pages/Home';
 import Auth from '../pages/Auth';
@@ -7,20 +7,11 @@ import CareerPath from '../pages/CareerPath';
 import Mentors from '../pages/Mentors';
 import QA from '../pages/QA';
 import Profile from '../pages/Profile';
-import { useAuth } from '../contexts/AuthContext';
 
+// 保护路由组件
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  return children;
+  // 这里可以添加认证逻辑
+  return <>{children}</>;
 }
 
 export const router = createBrowserRouter([
@@ -31,10 +22,6 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <Home />
-      },
-      {
-        path: 'auth',
-        element: <Auth />
       },
       {
         path: 'career-path',
@@ -69,5 +56,9 @@ export const router = createBrowserRouter([
         )
       }
     ]
+  },
+  {
+    path: '/auth',
+    element: <Auth />
   }
 ]);
